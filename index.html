@@ -152,32 +152,32 @@
       <h4 class="mb-4 text-primary fw-bold text-center">PFF Premium</h4>
       <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
-          <a href="#dashboard" class="nav-link active" onclick="switchView('dashboardView', this)">Dashboard</a>
+          <a href="javascript:void(0)" class="nav-link active" onclick="switchView('dashboardView', this)">Dashboard</a>
         </li>
         <li class="nav-item">
-          <a href="#priceChange" class="nav-link" onclick="switchView('priceChangeView', this)">Price Changes</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('priceChangeView', this)">Price Changes</a>
         </li>
         <li class="nav-item">
-          <a href="#products" class="nav-link" onclick="switchView('productsView', this)">Products</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('productsView', this)">Products</a>
         </li>
         <!-- New Menu Items -->
         <li class="nav-item">
-          <a href="#addProduct" class="nav-link" onclick="switchView('addProductView', this)">Add Product</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('addProductView', this)">Add Product</a>
         </li>
         <li class="nav-item">
-          <a href="#transferReceived" class="nav-link" onclick="switchView('transferReceivedView', this)">Transfer Received</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('transferReceivedView', this)">Transfer Received</a>
         </li>
         <li class="nav-item">
-          <a href="#storeTransfer" class="nav-link" onclick="switchView('storeTransferView', this)">Store Transfer</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('storeTransferView', this)">Store Transfer</a>
         </li>
         <li class="nav-item">
-          <a href="#addStock" class="nav-link" onclick="switchView('addStockView', this)">Add Stock</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('addStockView', this)">Add Stock</a>
         </li>
         <li class="nav-item">
-          <a href="#barcodePrint" class="nav-link" onclick="switchView('barcodePrintView', this)">Barcode Print</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('barcodePrintView', this)">Barcode Print</a>
         </li>
         <li class="nav-item">
-          <a href="#salesReport" class="nav-link" onclick="switchView('salesReportView', this)">Sales Report</a>
+          <a href="javascript:void(0)" class="nav-link" onclick="switchView('salesReportView', this)">Sales Report</a>
         </li>
       </ul>
       <div class="logout-box">
@@ -1113,12 +1113,12 @@
         cardHtml += `<div class="col-md-6 col-lg-3 mb-4"><div class="card card-custom p-4 text-center h-100 border-primary"><div class="store-title fw-bold text-primary">All Sales</div><div class="sale-value">${totalAllSales.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div></div></div>`;
         document.getElementById('dashboardCards').innerHTML = cardHtml;
 
-        // Handle URL Hash based routing
-        let currentHash = window.location.hash;
-        if (currentHash && currentHash !== '#dashboard') {
-          let targetLink = document.querySelector(`.sidebar .nav-link[href="${currentHash}"]`);
+        // Handle URL Path based routing instead of Hash
+        let currentPath = window.location.pathname.replace('/PFF-Pos/', '').replace(/\//g, '');
+        if (currentPath && currentPath !== 'dashboard' && currentPath !== 'index.html' && currentPath !== '') {
+          let viewId = currentPath + 'View';
+          let targetLink = document.querySelector(`.sidebar .nav-link[onclick*="${viewId}"]`);
           if (targetLink) {
-            let viewId = currentHash.substring(1) + 'View';
             const targetView = document.getElementById(viewId);
             if (targetView) {
               targetView.style.display = (viewId === 'productsView' || viewId === 'addStockView') ? 'flex' : 'block';
@@ -1148,8 +1148,9 @@
 
         // Default
         document.getElementById('dashboardView').style.display = 'block';
-        let dashboardLink = document.querySelector(`.sidebar .nav-link[href="#dashboard"]`);
+        let dashboardLink = document.querySelector(`.sidebar .nav-link[onclick*="dashboardView"]`);
         if (dashboardLink) dashboardLink.classList.add('active');
+        window.history.replaceState({}, '', '/PFF-Pos/dashboard');
 
       } else {
         showError(response.message);
@@ -1197,6 +1198,10 @@
       
       document.querySelectorAll('.sidebar .nav-link').forEach(el => el.classList.remove('active'));
       element.classList.add('active');
+
+      // Update URL silently without reloading or adding #
+      const pathName = viewId.replace('View', '');
+      window.history.pushState({}, '', '/PFF-Pos/' + pathName);
 
       if (viewId === 'dashboardView') {
         var savedUser = localStorage.getItem('posUser');

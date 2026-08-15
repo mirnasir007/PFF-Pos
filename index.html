@@ -1114,7 +1114,15 @@
         document.getElementById('dashboardCards').innerHTML = cardHtml;
 
         // Handle URL Path based routing instead of Hash
-        let currentPath = window.location.pathname.replace('/PFF-Pos/', '').replace(/\//g, '');
+        let searchParams = new URLSearchParams(window.location.search);
+        let redirectPath = searchParams.get('p');
+        
+        let currentPath = redirectPath ? redirectPath : window.location.pathname.replace('/PFF-Pos/', '').replace(/\//g, '');
+        
+        if (redirectPath) {
+          window.history.replaceState({}, '', '/PFF-Pos/' + currentPath);
+        }
+
         if (currentPath && currentPath !== 'dashboard' && currentPath !== 'index.html' && currentPath !== '') {
           let viewId = currentPath + 'View';
           let targetLink = document.querySelector(`.sidebar .nav-link[onclick*="${viewId}"]`);

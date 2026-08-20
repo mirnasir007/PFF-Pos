@@ -352,6 +352,8 @@
               <div class="action-area">
                 <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" style="flex: 1;" disabled>
                 <button type="button" class="btn-custom" style="background-color: #673ab7; white-space: nowrap;" onclick="openAddBrandModal()">+ Add Brand</button>
+                <input type="text" id="brandSearchBox" class="form-control" list="brandListOptions" placeholder="Brand Search" style="flex: 1; min-width: 150px; max-width: 250px; font-weight: bold; border: 1px solid #673ab7; border-radius: 4px;">
+                <datalist id="brandListOptions"></datalist>
                 <a href="data:text/csv;charset=utf-8,NAME,CPU,MRP,QTY,BRAND%0ASample Dress 1,1500,2500,10,AAFREEN (0098)%0ASample Bag 2,800,1200,5,AGHA NOOR (0003)" download="Sample_Products.csv" class="btn-custom btn-sample">
                   Download Sample File
                 </a>
@@ -632,7 +634,7 @@
               <div class="control-row">
                 <button id="srExcelBtn" class="btn-sr btn-excel shadow-sm" onclick="downloadCourierExcel()">Download Excel</button>
                 <div id="srSearchContainer" style="display: flex; align-items: center; gap: 5px;">
-                  <input type="text" id="srSearchInput" placeholder="Phone or Order ID" onkeypress="if(event.key === 'Enter') searchReportData()">
+                  <input type="text" id="srSearchInput" placeholder="Phone or Order ID" oninput="this.value = this.value.replace(/[^A-Z0-9]/ig, '').toUpperCase()" onkeypress="if(event.key === 'Enter') searchReportData()">
                   <button class="btn-sr shadow-sm" onclick="searchReportData()">Search</button>
                 </div>
                 <span id="srStatusMsg">Wait For Report</span>
@@ -1020,6 +1022,19 @@
 
     // --- Initialization ---
     document.addEventListener("DOMContentLoaded", function() {
+      // Auto-capitalize all text inputs globally
+      document.addEventListener('input', function(e) {
+        if (e.target.tagName === 'INPUT' && e.target.type === 'text' && e.target.id !== 'username' && e.target.id !== 'srSearchInput') {
+          let start = e.target.selectionStart;
+          let end = e.target.selectionEnd;
+          let upperVal = e.target.value.toUpperCase();
+          if (e.target.value !== upperVal) {
+            e.target.value = upperVal;
+            e.target.setSelectionRange(start, end);
+          }
+        }
+      });
+
       // Setup Initial Dates & Store Counts
       var d = new Date();
       var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -2566,6 +2581,18 @@
                     selection.removeAllRanges();
                     selection.addRange(range);
                 }
+            } else if (cellIndex === 0 || cellIndex === 4) {
+                let originalText = target.innerText;
+                let upperText = originalText.toUpperCase();
+                if (originalText !== upperText) {
+                    target.innerText = upperText;
+                    let selection = window.getSelection();
+                    let range = document.createRange();
+                    range.selectNodeContents(target);
+                    range.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
             }
         }
       });
@@ -2585,6 +2612,13 @@
             
             globalBrands = data.brands || []; 
             
+            let datalistHtml = '';
+            globalBrands.forEach(b => {
+              datalistHtml += `<option value="${b.BRAND_NAME}"></option>`;
+            });
+            let brandListOpt = document.getElementById('brandListOptions');
+            if(brandListOpt) brandListOpt.innerHTML = datalistHtml;
+
             if (data.subCategories && data.subCategories.length > 0) {
               data.subCategories.sort((a, b) => {
                 let codeA = a.CODE || a.SUB_CATEGORY_CODE || "";
@@ -2686,6 +2720,12 @@
             .then(data => {
               if(data.success) {
                 globalBrands = data.brands || [];
+                let datalistHtml = '';
+                globalBrands.forEach(b => {
+                  datalistHtml += `<option value="${b.BRAND_NAME}"></option>`;
+                });
+                let brandListOpt = document.getElementById('brandListOptions');
+                if(brandListOpt) brandListOpt.innerHTML = datalistHtml;
               }
             });
         } else {
@@ -2708,6 +2748,7 @@
         let text = clipboardData.getData('text/plain');
         if (!text) return;
         
+        text = text.toUpperCase();
         let cleanText = text.trim();
         let isMultiCell = cleanText.indexOf('\t') !== -1 || cleanText.indexOf('\n') !== -1;
         
@@ -2806,11 +2847,11 @@
                  tbody.innerHTML = '';
                  
                  json.forEach(row => {
-                     let name = row.NAME || row.Name || "";
+                     let name = String(row.NAME || row.Name || "").toUpperCase();
                      let cpu = row.CPU || row.BUY_PRICE || "";
                      let mrp = row.MRP || row.SALE_PRICE || "";
                      let qty = row.QTY || row.Qty || "";
-                     let brand = row.BRAND || row.Brand || "";
+                     let brand = String(row.BRAND || row.Brand || "").toUpperCase();
                      tbody.insertAdjacentHTML('beforeend', `<tr><td contenteditable="true">${name}</td><td contenteditable="true">${cpu}</td><td contenteditable="true">${mrp}</td><td contenteditable="true">${qty}</td><td contenteditable="true">${brand}</td></tr>`);
                  });
                  

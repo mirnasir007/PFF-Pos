@@ -815,6 +815,8 @@
             <div class="alert alert-info border-0 shadow-sm rounded mb-3 p-3">
               <h6 id="singlePcPName" class="text-truncate fw-bold text-dark mb-2"></h6>
               <div class="text-muted" style="font-size: 14px;">
+                <strong>SKU:</strong> <span id="singlePcBaseSkuDisp" class="text-dark"></span><br>
+                <strong>Barcode:</strong> <span id="singlePcFullBarcodeDisp" class="text-dark"></span><br>
                 <strong>Current Price:</strong> <span id="singlePcCurrentPrice" class="text-danger fw-bold"></span>
               </div>
             </div>
@@ -1284,6 +1286,7 @@
         
         gasRun('findProductBySku', [u, p, baseSku]).then(function(res) {
           if(res.success) {
+             document.getElementById('pcSkuInput').value = res.baseSku || baseSku;
              document.getElementById('fullBarcode').value = res.barcode;
              document.getElementById('prodName').value = res.name;
              document.getElementById('currentPrice').value = res.price;
@@ -1359,22 +1362,12 @@
       var shopList = [];
       checkboxes.forEach(cb => { shopList.push({ "STORE_CODE": cb.value, "TRANSFER": "N" }); });
 
-      var finalPriceChangeList = [];
-      priceChangeItems.forEach(function(item) {
-        finalPriceChangeList.push(item);
-        if (item.PRODUCT_CODE && item.PRODUCT_CODE !== item.SAL_BARCODE) {
-          var shortItem = JSON.parse(JSON.stringify(item));
-          shortItem.SAL_BARCODE = shortItem.PRODUCT_CODE;
-          finalPriceChangeList.push(shortItem);
-        }
-      });
-
       var payload = {
         "STORE_CODE": "100010001",
         "EFFECTIVE_DATE": document.getElementById('effectiveDate').value,
         "CATEGORY_WISE_COST_PRICE_CHANGE": false,
         "EFFECT_PRICE_CHANGE_ALL_TRANSECTION": false,
-        "CircularPriceChangeList": finalPriceChangeList,
+        "CircularPriceChangeList": priceChangeItems,
         "CircularPriceChangeShopList": shopList,
         "COMPANY_CODE": "10001"
       };
@@ -1904,8 +1897,11 @@
               document.getElementById('singlePcPName').innerText = res.name;
               document.getElementById('singlePcCurrentPrice').innerText = res.price;
               document.getElementById('singlePcFullBarcode').value = res.barcode;
-              document.getElementById('singlePcBaseSku').value = skuCode;
+              document.getElementById('singlePcBaseSku').value = res.baseSku || skuCode;
               
+              document.getElementById('singlePcBaseSkuDisp').innerText = res.baseSku || skuCode;
+              document.getElementById('singlePcFullBarcodeDisp').innerText = res.barcode;
+
               document.getElementById('singlePcContent').style.display = 'block';
               updateSinglePcStoreCount();
               
@@ -1961,12 +1957,6 @@
          "STORE_CODE": "",
          "WSP": 0, "PRV_WSP": 0, "PRICE1": 0, "PRV_PRICE1": 0, "PRICE2": 0, "PRV_PRICE2": 0, "PRICE3": 0, "PRV_PRICE3": 0, "PRICE4": 0, "PRV_PRICE4": 0
       }];
-
-      if (baseSku && baseSku !== fullBarcode) {
-         let shortItem = JSON.parse(JSON.stringify(priceChangeItems[0]));
-         shortItem.SAL_BARCODE = shortItem.PRODUCT_CODE;
-         priceChangeItems.push(shortItem);
-      }
 
       var d = new Date();
       var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];

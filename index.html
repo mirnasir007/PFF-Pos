@@ -476,6 +476,7 @@
                   <th>Challan No</th>
                   <th>From Store</th>
                   <th>Destination Store</th>
+                  <th>Date</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -3526,10 +3527,13 @@
                     const toStoreObj = allStoresList.find(s => s.STORE_CODE === ch.DELIVERY_TO);
                     const toStoreName = toStoreObj ? toStoreObj.STORE_NAME : ch.DESTINATION_STORE_NAME;
 
+                    let formattedDate = ch.DELIVERY_DATE ? ch.DELIVERY_DATE.split('T')[0] : "N/A";
+
                     return `<tr>
                         <td class="fw-bold">${ch.CHALLAN_NO}</td>
                         <td>${fromStoreName}</td>
                         <td>${toStoreName}</td>
+                        <td>${formattedDate}</td>
                         <td><button class="btn btn-sm btn-primary" onclick="openReceiveModal('${ch.CHALLAN_NO}', '${ch.STORE_CODE}', '${ch.DELIVERY_TO}', '${ch.DELIVERY_DATE}')">View</button></td>
                     </tr>`;
                 }).join('');

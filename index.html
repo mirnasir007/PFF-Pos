@@ -3527,7 +3527,14 @@
                     const toStoreObj = allStoresList.find(s => s.STORE_CODE === ch.DELIVERY_TO);
                     const toStoreName = toStoreObj ? toStoreObj.STORE_NAME : ch.DESTINATION_STORE_NAME;
 
-                    let formattedDate = ch.DELIVERY_DATE ? ch.DELIVERY_DATE.split('T')[0] : "N/A";
+                    let formattedDate = "N/A";
+                    if (ch.DELIVERY_DATE) {
+                        let dateParts = ch.DELIVERY_DATE.split('T')[0].split('-');
+                        if (dateParts.length === 3) {
+                            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                            formattedDate = `${dateParts[2]}-${monthNames[parseInt(dateParts[1], 10) - 1]}-${dateParts[0]}`;
+                        }
+                    }
 
                     return `<tr>
                         <td class="fw-bold">${ch.CHALLAN_NO}</td>

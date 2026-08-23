@@ -623,21 +623,24 @@
               <label>Print QTY *</label>
               <input type="number" id="bpQtyInput" value="" min="1" autocomplete="off">
             </div>
-            <button class="btn-bp shadow-sm" id="bpAddBtn" onclick="bpFetchAndAddProduct()">➕ Add To List</button>
-            <div style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <button class="btn-bp shadow-sm" id="bpAddBtn" onclick="bpFetchAndAddProduct()">➕ Add To List</button>
+              <div id="bpPrintSection" style="display: none;">
+                <button class="btn-print shadow-sm" onclick="bpGenerateBarcodes()" style="padding: 0; font-size: 20px; width: 100%; height: 44px;" title="Generate & Print Barcodes">🖨️</button>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 5px; cursor: pointer; height: 44px; margin-bottom: auto;">
               <input type="checkbox" id="bpAutoAdd" checked style="width: 18px; height: 18px; cursor: pointer;">
               <label for="bpAutoAdd" style="margin: 0; cursor: pointer; font-weight: bold; color: #333;">Auto</label>
             </div>
           </div>
 
-          <div class="print-section" id="bpPrintSection" style="display: none; margin-bottom: 25px;">
-            <button class="btn-print shadow-sm" onclick="bpGenerateBarcodes()">🖨️ Generate & Print Barcodes</button>
-          </div>
-
           <div id="bpLoaderMsg" style="color: #ff9800; font-weight: bold; margin-top: 10px; display: none; font-size: 14px;">⏳ Fetching POS Data... Please wait.</div>
           <div id="bpErrorMsg" style="color: #f44336; font-weight: bold; margin-top: 10px; display: none; font-size: 14px; text-align: center;"></div>
 
-          <table id="bpPrintTable" style="display: none;">
+          <table id="bpPrintTable" style="display: none; margin-top: 25px;">
             <thead>
               <tr>
                 <th>SKU (Base)</th>
@@ -2230,15 +2233,6 @@
             let vendorCode = pData.vendorCode || ""; 
             let baseSku = sku;
             
-            let knownVendors = ["1001", "1002", "1003", "1004"];
-            let detectedVendor = knownVendors.find(v => sku.endsWith(v));
-            
-            if (detectedVendor) {
-                baseSku = sku.substring(0, sku.length - detectedVendor.length);
-                if (!vendorCode) {
-                    vendorCode = detectedVendor;
-                }
-            }
             let fullBarcode = baseSku + vendorCode;
             let finalName = pData.name;
             

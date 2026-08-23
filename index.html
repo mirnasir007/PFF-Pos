@@ -614,26 +614,25 @@
           <h2 class="text-primary fw-bold"></h2>
           
           <div class="input-section border shadow-sm">
-            <div class="form-group" style="flex: 2;">
+            <div class="form-group" style="flex: 1.5;">
               <label>Scan / Enter SKU (Press Enter) *</label>
               <input type="text" id="bpSkuInput" autocomplete="off" oninput="this.value = this.value.toUpperCase()">
               <div id="bpSuggestions"></div>
             </div>
-            <div class="form-group" style="flex: 1;">
+            <div class="form-group" style="flex: 0.5;">
               <label>Print QTY *</label>
               <input type="number" id="bpQtyInput" value="" min="1" autocomplete="off">
             </div>
             
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              <button class="btn-bp shadow-sm" id="bpAddBtn" onclick="bpFetchAndAddProduct()">➕ Add To List</button>
-              <div id="bpPrintSection" style="display: none;">
-                <button class="btn-print shadow-sm" onclick="bpGenerateBarcodes()" style="padding: 0; font-size: 20px; width: 100%; height: 44px;" title="Generate & Print Barcodes">🖨️</button>
-              </div>
-            </div>
+            <button class="btn-bp shadow-sm" id="bpAddBtn" onclick="bpFetchAndAddProduct()">➕ Add To List</button>
 
-            <div style="display: flex; align-items: center; gap: 5px; cursor: pointer; height: 44px; margin-bottom: auto;">
+            <div style="display: flex; align-items: center; gap: 5px; cursor: pointer; height: 44px; margin-bottom: 0;">
               <input type="checkbox" id="bpAutoAdd" checked style="width: 18px; height: 18px; cursor: pointer;">
               <label for="bpAutoAdd" style="margin: 0; cursor: pointer; font-weight: bold; color: #333;">Auto</label>
+            </div>
+
+            <div id="bpPrintSection" style="display: none; height: 44px; margin-bottom: 0;">
+              <button class="btn-print shadow-sm" onclick="bpGenerateBarcodes()" style="padding: 0 15px; font-size: 20px; height: 100%; display: flex; align-items: center; justify-content: center;" title="Generate & Print Barcodes">🖨️</button>
             </div>
           </div>
 

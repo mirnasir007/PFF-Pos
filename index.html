@@ -1215,6 +1215,8 @@
             } else if (viewId === 'storeTransferView') {
               initStoreTransferModule();
             } else if (viewId === 'salesReportView') {
+              srLastFromDate = "";
+              srLastToDate = "";
               loadSalesReport().catch(err => console.error(err));
             }
             return;
@@ -1321,6 +1323,8 @@
       }
 
       if (viewId === 'salesReportView') {
+        srLastFromDate = "";
+        srLastToDate = "";
         loadSalesReport().catch(err => console.error(err));
       }
     }

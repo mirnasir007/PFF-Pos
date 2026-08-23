@@ -629,6 +629,11 @@
               <label for="bpAutoAdd" style="margin: 0; cursor: pointer; font-weight: bold; color: #333;">Auto</label>
             </div>
           </div>
+
+          <div class="print-section" id="bpPrintSection" style="display: none; margin-bottom: 25px;">
+            <button class="btn-print shadow-sm" onclick="bpGenerateBarcodes()">🖨️ Generate & Print Barcodes</button>
+          </div>
+
           <div id="bpLoaderMsg" style="color: #ff9800; font-weight: bold; margin-top: 10px; display: none; font-size: 14px;">⏳ Fetching POS Data... Please wait.</div>
           <div id="bpErrorMsg" style="color: #f44336; font-weight: bold; margin-top: 10px; display: none; font-size: 14px; text-align: center;"></div>
 
@@ -645,10 +650,6 @@
             </thead>
             <tbody id="bpPrintBody"></tbody>
           </table>
-
-          <div class="print-section" id="bpPrintSection" style="display: none;">
-            <button class="btn-print shadow-sm" onclick="bpGenerateBarcodes()">🖨️ Generate & Print Barcodes</button>
-          </div>
         </div>
       </div>
 

@@ -894,6 +894,50 @@
     </div>
   </div>
 
+  <!-- Product Action: Purchase Return Modal -->
+  <div class="modal fade" id="productPurchaseReturnModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold text-warning">Purchase Return</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="prLoader" class="text-center text-warning fw-bold" style="display:none; font-size: 14px;">Fetching product info... &#8987;</div>
+          <div id="prError" class="text-danger fw-bold text-center" style="display:none; font-size: 14px;"></div>
+          
+          <div id="prContent" style="display:none;">
+            <div class="alert alert-warning border-0 shadow-sm rounded mb-3 p-3">
+              <h6 id="prPName" class="text-truncate fw-bold text-dark mb-2"></h6>
+              <div class="text-muted" style="font-size: 14px;">
+                <strong>Sale Price:</strong> <span id="prSalePrice" class="text-dark fw-bold"></span><br>
+                <strong>Current Stock:</strong> <span id="prCurrentStock" class="text-danger fw-bold"></span>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">Vendor Code (Auto)</label>
+              <input type="text" id="prVendor" class="form-control bg-light" readonly>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Return Date *</label>
+              <input type="text" id="prDate" class="form-control border-warning fw-bold">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Return QTY *</label>
+              <input type="number" id="prQty" class="form-control form-control-lg border-warning" min="1" placeholder="Enter Qty">
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Reason</label>
+              <input type="text" id="prReason" class="form-control border-warning" placeholder="Enter reason (optional)">
+            </div>
+            <button id="prSaveBtn" class="btn btn-warning w-100 fw-bold py-2 shadow-sm text-dark" onclick="submitPurchaseReturn()">Save Return</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Global Stock Modal -->
   <div class="modal fade" id="globalStockModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1532,6 +1576,7 @@
                 <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="openBarcodePrintModal('${skuCode}'); return false;">&#128424; Barcode Print</a></li>
                 <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="openAddStockModal('${skuCode}'); return false;">&#128230; Add Stock</a></li>
                 <li><a class="dropdown-item fw-semibold py-2 text-success" href="#" onclick="openSingleStoreTransferModal('${skuCode}'); return false;">&#128666; Store Transfer</a></li>
+                <li><a class="dropdown-item fw-semibold py-2 text-warning" href="#" onclick="openPurchaseReturnModal('${skuCode}'); return false;">&#128228; Purchase Return</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item fw-semibold py-2 text-danger" href="#" onclick="openSinglePriceChangeModal('${skuCode}'); return false;">&#128178; Price Change</a></li>
               </ul>
@@ -2064,6 +2109,127 @@
          btn.innerText = "Apply Changes";
          btn.disabled = false;
          showCustomAlert(err.message, "Error");
+      });
+    }
+
+    let currentPrProduct = null;
+
+    function openPurchaseReturnModal(skuCode) {
+      document.getElementById('prLoader').style.display = 'block';
+      document.getElementById('prContent').style.display = 'none';
+      document.getElementById('prError').style.display = 'none';
+      document.getElementById('prQty').value = '';
+      document.getElementById('prReason').value = '';
+      
+      const modal = new bootstrap.Modal(document.getElementById('productPurchaseReturnModal'));
+      modal.show();
+
+      const d = new Date();
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      document.getElementById('prDate').value = `${('0' + d.getDate()).slice(-2)}-${months[d.getMonth()]}-${d.getFullYear()}`;
+
+      let u = localStorage.getItem('posUser');
+      let p = localStorage.getItem('posAuth');
+
+      gasRun('getAddStockProductInfo', [u, p, skuCode]).then(function(res) {
+          document.getElementById('prLoader').style.display = 'none';
+          if (res.success && res.data) {
+              currentPrProduct = res.data;
+              let stock = res.data.WH_BAL_QTY !== undefined ? res.data.WH_BAL_QTY : (res.data.BAL_QTY || 0);
+              document.getElementById('prPName').innerText = res.data.DISPLAY_NAME || '';
+              document.getElementById('prSalePrice').innerText = res.data.SALE_PRICE || res.data.MRP || 0;
+              document.getElementById('prCurrentStock').innerText = stock;
+              document.getElementById('prVendor').value = res.data.VENDOR_CODE || '';
+              
+              document.getElementById('prContent').style.display = 'block';
+          } else {
+              document.getElementById('prError').innerText = res.message || "Failed to load product info.";
+              document.getElementById('prError').style.display = 'block';
+          }
+      }).catch(function(err) {
+          document.getElementById('prLoader').style.display = 'none';
+          document.getElementById('prError').innerText = err.message;
+          document.getElementById('prError').style.display = 'block';
+      });
+    }
+
+    function submitPurchaseReturn() {
+      let qty = parseInt(document.getElementById('prQty').value);
+      let stock = parseInt(document.getElementById('prCurrentStock').innerText);
+      let rtnDate = document.getElementById('prDate').value;
+      let vendorCode = document.getElementById('prVendor').value;
+      
+      if (!qty || qty <= 0) {
+        showCustomAlert("Please enter a valid quantity.", "Warning");
+        return;
+      }
+      if (qty > stock) {
+        showCustomAlert("Return quantity cannot exceed current stock!", "Error");
+        return;
+      }
+
+      let btn = document.getElementById('prSaveBtn');
+      btn.innerText = 'Saving...';
+      btn.disabled = true;
+
+      let prod = currentPrProduct;
+      let cpu = parseFloat(prod.LAST_PUR_PRICE || prod.PUR_PRICE || 0);
+      let amount = cpu * qty;
+
+      let detail = {
+          "selected": true,
+          "SAL_BARCODE": prod.SAL_BARCODE || prod.BARCODE,
+          "DISPLAY_NAME": prod.DISPLAY_NAME || '',
+          "USER_BARCODE": prod.BARCODE,
+          "BARCODE": prod.BARCODE,
+          "SAL_PRICE": parseFloat(prod.SALE_PRICE || prod.MRP || 0),
+          "RTN_QTY": String(qty),
+          "SAL_UOM_NAME": prod.PUR_UOM_NAME || "PCS",
+          "EXPIRE_DATE": "0001-01-01T00:00:00",
+          "IS_EXPIRY_ITEM": 0,
+          "CPU": cpu,
+          "IS_GIFT": "N",
+          "AMOUNT": amount,
+          "SL": 0,
+          "COMPANY_CODE": "10001",
+          "RTN_DT": rtnDate,
+          "STORE_CODE": "100010001",
+          "VENDOR_CODE": vendorCode,
+          "RCV_NO": "",
+          "RCV_DATE": "0001-01-01T00:00:00",
+          "CurrentStock": stock,
+          "CStock": stock
+      };
+
+      let payload = {
+          "VENDOR_CODE": vendorCode,
+          "RTN_DT": rtnDate,
+          "COMPANY_CODE": "10001",
+          "STORE_CODE": "100010001",
+          "PurchaseReturnDetailsList": [detail]
+      };
+
+      let u = localStorage.getItem('posUser');
+      let p = localStorage.getItem('posAuth');
+
+      gasRun('savePurchaseReturn', [u, p, payload]).then(function(res) {
+          btn.innerText = 'Save Return';
+          btn.disabled = false;
+          
+          if(res.success) {
+            bootstrap.Modal.getInstance(document.getElementById('productPurchaseReturnModal')).hide();
+            showCustomAlert("Purchase Return Successful!", "Success");
+            if (res.data && typeof res.data === 'string' && res.data.includes('.pdf')) {
+               window.open("http://103.87.213.56/PFF" + res.data, '_blank');
+            }
+            searchProducts(currentProductPage);
+          } else {
+            showCustomAlert(res.message, "Error");
+          }
+      }).catch(function(err) {
+          btn.innerText = 'Save Return';
+          btn.disabled = false;
+          showCustomAlert(err.message, "Error");
       });
     }
 

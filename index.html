@@ -916,8 +916,9 @@
             </div>
             
             <div class="mb-3">
-              <label class="form-label fw-bold">Vendor Code (Auto)</label>
-              <input type="text" id="prVendor" class="form-control bg-light" readonly>
+              <label class="form-label fw-bold">Vendor (Auto)</label>
+              <input type="text" id="prVendorDisp" class="form-control bg-light" readonly>
+              <input type="hidden" id="prVendor">
             </div>
             <div class="mb-3">
               <label class="form-label fw-bold">Return Date *</label>
@@ -2140,6 +2141,14 @@
               document.getElementById('prSalePrice').innerText = res.data.SALE_PRICE || res.data.MRP || 0;
               document.getElementById('prCurrentStock').innerText = stock;
               document.getElementById('prVendor').value = res.data.VENDOR_CODE || '';
+              
+              let vendorNameDisp = res.data.VENDOR_CODE || '';
+              if (res.data.VENDOR_CODE && res.data.VENDOR_NAME) {
+                 vendorNameDisp = `${res.data.VENDOR_NAME} (${res.data.VENDOR_CODE})`;
+              } else if (res.data.VENDOR_NAME) {
+                 vendorNameDisp = res.data.VENDOR_NAME;
+              }
+              document.getElementById('prVendorDisp').value = vendorNameDisp;
               
               document.getElementById('prContent').style.display = 'block';
           } else {

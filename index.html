@@ -908,7 +908,10 @@
           
           <div id="prContent" style="display:none;">
             <div class="alert alert-warning border-0 shadow-sm rounded mb-3 p-3">
-              <h6 id="prPName" class="text-truncate fw-bold text-dark mb-2"></h6>
+              <h6 id="prPName" class="text-truncate fw-bold text-dark mb-1"></h6>
+              <div class="text-muted mb-2" style="font-size: 13px;">
+                <strong>SKU:</strong> <span id="prSkuDisp" class="text-dark"></span>
+              </div>
               <div class="text-muted" style="font-size: 14px;">
                 <strong>Sale Price:</strong> <span id="prSalePrice" class="text-dark fw-bold"></span><br>
                 <strong>Current Stock:</strong> <span id="prCurrentStock" class="text-danger fw-bold"></span>
@@ -2138,6 +2141,7 @@
               currentPrProduct = res.data;
               let stock = res.data.WH_BAL_QTY !== undefined ? res.data.WH_BAL_QTY : (res.data.BAL_QTY || 0);
               document.getElementById('prPName').innerText = res.data.DISPLAY_NAME || '';
+              document.getElementById('prSkuDisp').innerText = res.data.BARCODE || skuCode;
               document.getElementById('prSalePrice').innerText = res.data.SALE_PRICE || res.data.MRP || 0;
               document.getElementById('prCurrentStock').innerText = stock;
               document.getElementById('prVendor').value = res.data.VENDOR_CODE || '';

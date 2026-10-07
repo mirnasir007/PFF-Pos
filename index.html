@@ -2195,7 +2195,7 @@
 
       let detail = {
           "selected": true,
-          "SAL_BARCODE": (prod.SAL_BARCODE && prod.SAL_BARCODE.length > prod.BARCODE.length) ? prod.SAL_BARCODE : (prod.BARCODE + vendorCode),
+          "SAL_BARCODE": prod.BARCODE + vendorCode,
           "DISPLAY_NAME": prod.DISPLAY_NAME || '',
           "USER_BARCODE": prod.BARCODE,
           "BARCODE": prod.BARCODE,

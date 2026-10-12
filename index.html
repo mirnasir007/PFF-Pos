@@ -3029,6 +3029,16 @@
         
         if (!isMultiCell) {
             e.preventDefault(); 
+            let targetCell = document.activeElement;
+            if (targetCell && targetCell.tagName === 'TD') {
+                let cellIndex = Array.from(targetCell.parentElement.children).indexOf(targetCell);
+                if (cellIndex === 1 || cellIndex === 2 || cellIndex === 3) {
+                    cleanText = cleanText.replace(/,/g, '');
+                    if (cleanText.endsWith('.00')) {
+                        cleanText = cleanText.replace(/\.00$/, '');
+                    }
+                }
+            }
             if (document.queryCommandSupported('insertText')) {
                 document.execCommand('insertText', false, cleanText);
             } else {
@@ -3093,7 +3103,14 @@
                 if (targetColIndex < 5) {
                     let targetTd = targetRow.children[targetColIndex];
                     if (targetTd) {
-                        targetTd.innerText = cols[j].trim();
+                        let cellValue = cols[j].trim();
+                        if (targetColIndex === 1 || targetColIndex === 2 || targetColIndex === 3) {
+                            cellValue = cellValue.replace(/,/g, '');
+                            if (cellValue.endsWith('.00')) {
+                                cellValue = cellValue.replace(/\.00$/, '');
+                            }
+                        }
+                        targetTd.innerText = cellValue;
                     }
                 }
             }
@@ -3123,9 +3140,9 @@
                  
                  json.forEach(row => {
                      let name = String(row.NAME || row.Name || "").toUpperCase();
-                     let cpu = row.CPU || row.BUY_PRICE || "";
-                     let mrp = row.MRP || row.SALE_PRICE || "";
-                     let qty = row.QTY || row.Qty || "";
+                     let cpu = String(row.CPU || row.BUY_PRICE || "").replace(/,/g, '').replace(/\.00$/, '');
+                     let mrp = String(row.MRP || row.SALE_PRICE || "").replace(/,/g, '').replace(/\.00$/, '');
+                     let qty = String(row.QTY || row.Qty || "").replace(/,/g, '').replace(/\.00$/, '');
                      let brand = String(row.BRAND || row.Brand || "").toUpperCase();
                      tbody.insertAdjacentHTML('beforeend', `<tr><td contenteditable="true">${name}</td><td contenteditable="true">${cpu}</td><td contenteditable="true">${mrp}</td><td contenteditable="true">${qty}</td><td contenteditable="true">${brand}</td></tr>`);
                  });

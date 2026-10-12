@@ -57,7 +57,7 @@
       .table-responsive { border: 0; }
       input.form-control, select.form-control, button.btn { min-height: 44px; }
     }
-    
+
     /* Cards */
     .card-custom { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); background: #ffffff; }
     .sale-value { font-size: 28px; font-weight: 700; color: #198754; margin-top: 10px; }
@@ -247,11 +247,7 @@
                 <ul class="dropdown-menu w-100 p-2 shadow">
                   <li><div class="form-check"><input class="form-check-input" type="checkbox" id="selectAllStores" onchange="toggleAllStores(this)" checked><label class="form-check-label">Select All</label></div></li>
                   <li><hr class="dropdown-divider"></li>
-                  <li><div class="form-check"><input class="form-check-input store-cb" type="checkbox" value="100010004" onchange="updateStoreCount()" checked> E-STORE</div></li>
-                  <li><div class="form-check"><input class="form-check-input store-cb" type="checkbox" value="100010002" onchange="updateStoreCount()" checked> Dhanmondi</div></li>
-                  <li><div class="form-check"><input class="form-check-input store-cb" type="checkbox" value="100010003" onchange="updateStoreCount()" checked> Banani</div></li>
-                  <li><div class="form-check"><input class="form-check-input store-cb" type="checkbox" value="100010006" onchange="updateStoreCount()" checked> Uttara</div></li>
-                  <li><div class="form-check"><input class="form-check-input store-cb" type="checkbox" value="100010001" checked disabled> WH-Central</div></li>
+                  <li><div id="priceChangeStoreOptions"></div></li>
                 </ul>
               </div>
             </div>
@@ -874,11 +870,7 @@
                 <ul class="dropdown-menu w-100 p-3 shadow-lg border-0" style="border-radius: 8px;">
                   <li><div class="form-check mb-2"><input class="form-check-input" type="checkbox" onchange="toggleSinglePcAllStores(this)" checked><label class="form-check-label fw-bold">Select All</label></div></li>
                   <li><hr class="dropdown-divider"></li>
-                  <li><div class="form-check mb-1"><input class="form-check-input single-pc-store-cb" type="checkbox" value="100010004" onchange="updateSinglePcStoreCount()" checked> E-STORE</div></li>
-                  <li><div class="form-check mb-1"><input class="form-check-input single-pc-store-cb" type="checkbox" value="100010002" onchange="updateSinglePcStoreCount()" checked> Dhanmondi</div></li>
-                  <li><div class="form-check mb-1"><input class="form-check-input single-pc-store-cb" type="checkbox" value="100010003" onchange="updateSinglePcStoreCount()" checked> Banani</div></li>
-                  <li><div class="form-check mb-1"><input class="form-check-input single-pc-store-cb" type="checkbox" value="100010006" onchange="updateSinglePcStoreCount()" checked> Uttara</div></li>
-                  <li><div class="form-check"><input class="form-check-input single-pc-store-cb" type="checkbox" value="100010001" checked disabled> WH-Central</div></li>
+                  <li><div id="singlePcStoreOptions"></div></li>
                 </ul>
               </div>
             </div>
@@ -1093,6 +1085,10 @@
     let globalBrands = []; 
     let undoStack = [];
     let redoStack = [];
+
+    function normalizeAccountingAmount(value) {
+      return String(value === null || value === undefined ? '' : value).trim().replace(/,/g, '');
+    }
     
     // Dashboard & Others
     var priceChangeItems = [];
@@ -1116,6 +1112,51 @@
       } else {
         backdrop.classList.remove('show');
       }
+    }
+
+    function populatePriceChangeStoreOptions(stores) {
+      populateStoreCheckboxes(stores, 'priceChangeStoreOptions', 'store-cb', updateStoreCount);
+      updateStoreCount();
+    }
+
+    function populateSinglePriceChangeStoreOptions(stores) {
+      populateStoreCheckboxes(stores, 'singlePcStoreOptions', 'single-pc-store-cb', updateSinglePcStoreCount);
+      updateSinglePcStoreCount();
+    }
+
+    function populateStoreCheckboxes(stores, containerId, checkboxClass, onChange) {
+      const options = document.getElementById(containerId);
+      if (!options) return;
+
+      options.innerHTML = '';
+      const sortedStores = stores.slice().sort((a, b) =>
+        String(a.STORE_CODE).localeCompare(String(b.STORE_CODE), undefined, { numeric: true })
+      );
+
+      sortedStores.forEach(store => {
+        const storeCode = String(store.STORE_CODE || '');
+        const storeName = String(store.STORE_NAME || '').trim();
+        const normalizedName = storeName.toUpperCase();
+        const isWarehouse = storeCode === '100010001' || normalizedName.includes('PREMIUM_WH');
+        if (!storeCode || normalizedName === 'PFF SALES') return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'form-check';
+        const checkbox = document.createElement('input');
+        checkbox.className = 'form-check-input ' + checkboxClass;
+        checkbox.type = 'checkbox';
+        checkbox.value = storeCode;
+        checkbox.checked = true;
+        checkbox.disabled = isWarehouse;
+        checkbox.addEventListener('change', onChange);
+
+        const label = document.createElement('label');
+        label.className = 'form-check-label';
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(' ' + storeName));
+        wrapper.appendChild(label);
+        options.appendChild(wrapper);
+      });
     }
 
     // --- Initialization ---
@@ -1420,6 +1461,7 @@
            showCustomAlert(err.message, "Error");
         });
       }
+
     }
 
     function handleMrpEnter(event) {
@@ -3169,7 +3211,13 @@
               let brand = cells[4].innerText.trim();
               
               if(name !== '' || cpu !== '' || mrp !== '' || qty !== '' || brand !== '') {
-                  pastedData.push({ NAME: name, CPU: cpu, MRP: mrp, QTY: qty, BRAND: brand });
+                  pastedData.push({
+                    NAME: name,
+                    CPU: normalizeAccountingAmount(cpu),
+                    MRP: normalizeAccountingAmount(mrp),
+                    QTY: qty,
+                    BRAND: brand
+                  });
               }
           }
       });
@@ -3682,6 +3730,8 @@
             }
         });
 
+        populatePriceChangeStoreOptions(stores);
+        populateSinglePriceChangeStoreOptions(stores);
         if(fromSelect) fromSelect.innerHTML = fromOptionsHtml;
         if(toSelect) toSelect.innerHTML = toOptionsHtml;
         if(forwardSelect) forwardSelect.innerHTML = toOptionsHtml;

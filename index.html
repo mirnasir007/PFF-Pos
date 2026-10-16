@@ -992,13 +992,18 @@
         <div class="modal-header bg-light d-flex justify-content-between align-items-center">
           <h5 class="modal-title fw-bold text-primary mb-0">Product Details - <span id="modalChallanTitle"></span></h5>
           <div id="modalHeaderActions" class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-info px-4 fw-bold shadow-sm" id="btnReceiveByScan" onclick="startChallanScan()">Receive By Scan</button>
             <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" id="btnReceiveChallan" onclick="submitReceiveChallan()">Receive</button>
             <button type="button" class="btn btn-secondary px-4 fw-bold shadow-sm" data-bs-dismiss="modal">Cancel</button>
             <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
         </div>
         <div class="modal-body p-4">
-          
+          <div id="challanScanPanel" class="alert alert-info d-none mb-3">
+            <label for="challanScanInput" class="form-label fw-bold mb-2">Scan product code or barcode</label>
+            <input type="text" id="challanScanInput" class="form-control" autocomplete="off" placeholder="Scan or enter code/barcode and press Enter" onkeydown="handleChallanProductScan(event)">
+            <div id="challanScanStatus" class="small mt-2">Scanned: 0 items</div>
+          </div>
           <div class="table-responsive border rounded">
             <table class="table table-bordered table-hover mb-0 text-center align-middle">
               <thead class="table-light">
@@ -3698,6 +3703,7 @@
     let allStoresList = [];
     let currentChallanMeta = {};
     let currentChallanProducts = [];
+    let challanScanMode = false;
     let newDeliveryCart = [];
 
     function showToast(message, type = 'primary') {
@@ -3802,12 +3808,16 @@
 
     function openReceiveModal(challanNo, fromStore, toStore, deliveryDate) {
         currentChallanMeta = { challanNo, fromStore, toStore, deliveryDate };
+        challanScanMode = false;
         document.getElementById('modalChallanTitle').innerText = challanNo;
         document.getElementById('modalHeaderActions').classList.remove('d-none');
+        document.getElementById('challanScanPanel').classList.add('d-none');
+        document.getElementById('btnReceiveByScan').disabled = false;
         
         const btnReceive = document.getElementById('btnReceiveChallan');
         btnReceive.disabled = false;
         btnReceive.innerHTML = "Receive";
+        currentChallanProducts = [];
         
         const tbody = document.getElementById('modalProductList');
         tbody.innerHTML = "<tr><td colspan='9' class='text-center'>Loading products...</td></tr>";
@@ -3820,7 +3830,7 @@
 
         gasRun('getChallanDetails', [u, p, fromStore, toStore, challanNo]).then(res => {
             if (res.success && res.data.length > 0) {
-                currentChallanProducts = res.data;
+                currentChallanProducts = res.data.map(product => ({ ...product, SCAN_QTY: 0 }));
                 tbody.innerHTML = currentChallanProducts.map((p, index) => 
                     `<tr>
                         <td>${index + 1}</td>
@@ -3831,9 +3841,10 @@
                         <td>${p.CPU}</td>
                         <td>${p.SAL_PRICE}</td>
                         <td class="fw-bold text-primary">${p.DEL_QTY}</td>
-                        <td><input type="number" class="form-control form-control-sm text-center mx-auto" value="${p.DEL_QTY}" style="width: 80px;" disabled></td>
+                        <td><input type="number" id="challanReceiveQty-${index}" class="form-control form-control-sm text-center mx-auto" value="${p.DEL_QTY}" style="width: 80px;" disabled></td>
                     </tr>`
                 ).join('');
+                document.getElementById('challanScanStatus').innerText = `Scanned: 0 items`;
             } else {
                 tbody.innerHTML = "<tr><td colspan='9' class='text-center text-danger'>No items found.</td></tr>";
                 currentChallanProducts = [];
@@ -3843,8 +3854,89 @@
         });
     }
 
+    function startChallanScan() {
+        if (currentChallanProducts.length === 0) return showToast("No products to scan.", "warning");
+
+        challanScanMode = true;
+        document.getElementById('btnReceiveByScan').disabled = true;
+        currentChallanProducts.forEach(product => product.SCAN_QTY = 0);
+        currentChallanProducts.forEach((product, index) => {
+            const quantityInput = document.getElementById(`challanReceiveQty-${index}`);
+            if (quantityInput) quantityInput.value = 0;
+        });
+        document.getElementById('challanScanPanel').classList.remove('d-none');
+        document.getElementById('challanScanInput').value = '';
+        document.getElementById('challanScanStatus').innerText = 'Scanned: 0 items';
+        document.getElementById('challanScanInput').focus();
+    }
+
+    function handleChallanProductScan(event) {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+
+        const input = document.getElementById('challanScanInput');
+        const scannedValue = input.value.trim().toUpperCase();
+        input.value = '';
+        if (!scannedValue) return;
+
+        const productCodes = product => [product.BARCODE, product.SAL_BARCODE, product.SKU, product.CODE, product.PRODUCT_CODE]
+            .filter(value => value !== undefined && value !== null && String(value).trim() !== '')
+            .map(value => String(value).trim().toUpperCase());
+        let matches = currentChallanProducts.filter(product => productCodes(product).includes(scannedValue));
+
+        if (matches.length === 0 && scannedValue.length > 4 && /\d{4}$/.test(scannedValue)) {
+            const shortCode = scannedValue.slice(0, -4);
+            const suffixVendorCode = scannedValue.slice(-4);
+            const shortCodeMatches = currentChallanProducts.filter(product =>
+                [product.BARCODE, product.SKU, product.CODE, product.PRODUCT_CODE]
+                    .filter(value => value !== undefined && value !== null && String(value).trim() !== '')
+                    .some(value => String(value).trim().toUpperCase() === shortCode)
+            );
+            const productsWithVendorCodes = shortCodeMatches.filter(product =>
+                product.VENDOR_CODE !== undefined && product.VENDOR_CODE !== null && String(product.VENDOR_CODE).trim() !== ''
+            );
+            matches = productsWithVendorCodes.length > 0
+                ? productsWithVendorCodes.filter(product => String(product.VENDOR_CODE).trim().toUpperCase() === suffixVendorCode)
+                : shortCodeMatches;
+        }
+
+        if (matches.length !== 1) {
+            showToast(matches.length > 1 ? "Scan is ambiguous; use the product code or full barcode." : "Product not found in this challan.", "warning");
+            input.focus();
+            return;
+        }
+
+        const product = matches[0];
+        const deliveryQty = Number(product.DEL_QTY);
+        if (!Number.isFinite(deliveryQty) || deliveryQty < 0) {
+            showToast("Invalid challan quantity for this product.", "danger");
+            input.focus();
+            return;
+        }
+        if (product.SCAN_QTY >= deliveryQty) {
+            showToast("Scanned quantity cannot exceed the challan quantity.", "warning");
+            input.focus();
+            return;
+        }
+
+        product.SCAN_QTY += 1;
+        const productIndex = currentChallanProducts.indexOf(product);
+        document.getElementById(`challanReceiveQty-${productIndex}`).value = product.SCAN_QTY;
+        const totalScanned = currentChallanProducts.reduce((total, item) => total + item.SCAN_QTY, 0);
+        document.getElementById('challanScanStatus').innerText = `Scanned: ${totalScanned} items`;
+        input.focus();
+    }
+
     function submitReceiveChallan() {
         if(currentChallanProducts.length === 0) return showToast("No products to receive!", "danger");
+
+        const productsToReceive = challanScanMode
+            ? currentChallanProducts.filter(product => product.SCAN_QTY > 0)
+            : currentChallanProducts;
+        if (productsToReceive.length === 0) return showToast("Scan at least one challan product before receiving.", "warning");
+        currentChallanProducts.forEach(product => {
+            product.RCV_QTY = challanScanMode ? product.SCAN_QTY : product.DEL_QTY;
+        });
         
         const btnReceive = document.getElementById('btnReceiveChallan');
         btnReceive.disabled = true;
@@ -3860,9 +3952,9 @@
             COMPANY_CODE: "10001",
             STATUS: "N",
             CREATE_DAMAGE_CHALLAN: false,
-            StoreDeliveryDetails: currentChallanProducts.map((p, idx) => ({
+            StoreDeliveryDetails: productsToReceive.map((p, idx) => ({
                 ...p,
-                RCV_QTY: p.DEL_QTY,
+                RCV_QTY: challanScanMode ? p.SCAN_QTY : p.DEL_QTY,
                 selected: true,
                 SL: idx + 1
             }))
@@ -3893,6 +3985,9 @@
         const nextDestination = document.getElementById('forwardTransferStore').value;
         if(!nextDestination) return showToast("Select destination store", "warning");
         if(nextDestination === currentChallanMeta.toStore) return showToast("Please select a different destination.", "warning");
+        if (!currentChallanProducts.some(product => Number(product.RCV_QTY) > 0)) {
+            return showToast("No received products are available to transfer.", "warning");
+        }
 
         const btn = document.getElementById('btnSubmitForward');
         btn.disabled = true; btn.innerText = "Processing...";
@@ -3915,8 +4010,9 @@
                 UUID: transactionUUID,
                 OPERATION_TYPE: "",
                 NOTE: "Forwarded from received challan",
-                StoreDeliveryDetails: currentChallanProducts.map(prod => ({
+                StoreDeliveryDetails: currentChallanProducts.filter(prod => Number(prod.RCV_QTY) > 0).map(prod => ({
                     ...prod,
+                    DEL_QTY: Number(prod.RCV_QTY),
                     STORE_CODE: currentChallanMeta.toStore, 
                     DELIVERY_TO: null,
                     RCV_QTY: 0,

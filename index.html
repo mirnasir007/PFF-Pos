@@ -1089,7 +1089,7 @@
         <div class="modal-body text-center p-4">
           <p class="mb-4 text-muted">Price changes! Do you want to print new price barcodes?</p>
           <button type="button" class="btn btn-outline-secondary px-4 me-2" onclick="closePriceBarcodePrompt()">No</button>
-          <button type="button" class="btn btn-primary px-4" onclick="continueToPriceBarcodeList()">Yes, Print</button>
+          <button type="button" id="continuePriceBarcodeBtn" class="btn btn-primary px-4" onclick="continueToPriceBarcodeList()">Yes, Print</button>
         </div>
       </div>
     </div>
@@ -1323,7 +1323,34 @@
       bootstrap.Modal.getOrCreateInstance(document.getElementById('priceBarcodePromptModal')).hide();
     }
 
-    function continueToPriceBarcodeList() {
+    async function continueToPriceBarcodeList() {
+      const continueButton = document.getElementById('continuePriceBarcodeBtn');
+      continueButton.disabled = true;
+      try {
+        const resolvedNames = await Promise.all(pendingPriceBarcodeItems.map(async item => {
+          const response = await fetch(BP_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'check_bulk', sku: item.baseSku })
+          });
+          if (!response.ok) throw new Error(`Could not load product name for SKU ${item.baseSku}.`);
+          const result = await response.json();
+          const name = result && result.success && result.data && result.data.name;
+          if (!name || name === 'Unknown Product') {
+            throw new Error(`Could not load product name for SKU ${item.baseSku}.`);
+          }
+          return name;
+        }));
+        pendingPriceBarcodeItems.forEach((item, index) => {
+          item.name = resolvedNames[index];
+        });
+      } catch (error) {
+        showCustomAlert(error.message || "Could not load product names for barcode printing.", "Error");
+        return;
+      } finally {
+        continueButton.disabled = false;
+      }
+
       const promptModal = document.getElementById('priceBarcodePromptModal');
       promptModal.addEventListener('hidden.bs.modal', function openBarcodeList() {
         const tbody = document.getElementById('priceBarcodeListBody');

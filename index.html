@@ -316,13 +316,14 @@
                   <th>Product Name</th>
                   <th>Brand</th>
                   <th>Vendor</th>
+                  <th>Sub Category</th>
                   <th>CPU</th>
                   <th>MRP</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="productsTableBody">
-                <tr><td colspan="7" class="text-muted">No products to display</td></tr>
+                <tr><td colspan="8" class="text-muted">No products to display</td></tr>
               </tbody>
             </table>
           </div>
@@ -886,6 +887,48 @@
     </div>
   </div>
 
+  <!-- Product Action: Edit Product Modal -->
+  <div class="modal fade" id="productEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title fw-bold text-primary">Edit Product</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="productEditLoader" class="text-center text-primary fw-bold">Fetching product details... &#8987;</div>
+          <div id="productEditError" class="alert alert-danger d-none" role="alert"></div>
+          <div id="productEditForm" class="row g-3" style="display:none;">
+            <div class="col-md-6">
+              <label for="productEditName" class="form-label fw-bold">Product Name</label>
+              <input id="productEditName" type="text" class="form-control" maxlength="200" required>
+            </div>
+            <div class="col-md-6">
+              <label for="productEditBrand" class="form-label fw-bold">Brand</label>
+              <select id="productEditBrand" class="form-select" required></select>
+            </div>
+            <div class="col-md-6">
+              <label for="productEditCpu" class="form-label fw-bold">CPU (Buying Price)</label>
+              <input id="productEditCpu" type="number" class="form-control" min="0" step="0.01" required>
+            </div>
+            <div class="col-md-6">
+              <label for="productEditMrp" class="form-label fw-bold">MRP (Selling Price)</label>
+              <input id="productEditMrp" type="number" class="form-control" min="0" step="0.01" required>
+            </div>
+            <div class="col-md-6">
+              <label for="productEditSubCategory" class="form-label fw-bold">Sub Category</label>
+              <select id="productEditSubCategory" class="form-select" required></select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="productEditSaveBtn" class="btn btn-primary fw-bold" onclick="saveProductEdit()" disabled>Update Product</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Product Action: Purchase Return Modal -->
   <div class="modal fade" id="productPurchaseReturnModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1144,8 +1187,12 @@
     
     // Dashboard & Others
     var priceChangeItems = [];
+    let currentPriceChangeCpu = 0;
     let currentProductPage = 1;
     let totalProducts = 0;
+    let currentProductRows = [];
+    let currentProductEdit = null;
+    let globalSubCategories = [];
     let pendingPriceBarcodeItems = [];
     const BARCODE_PRICE_CACHE_KEY = "barcodePriceOverrides";
     const BARCODE_PRICE_CACHE_TTL = 60 * 60 * 1000;
@@ -1660,6 +1707,7 @@
              document.getElementById('fullBarcode').value = res.barcode;
              document.getElementById('prodName').value = res.name;
              document.getElementById('currentPrice').value = res.price;
+             currentPriceChangeCpu = Number(res.cpu);
              document.getElementById('newMrp').focus();
           } else {
              showCustomAlert(res.message, "Notice");
@@ -1684,8 +1732,9 @@
       var name = document.getElementById('prodName').value;
       var oldPrice = document.getElementById('currentPrice').value;
       var newPrice = document.getElementById('newMrp').value;
+      var cpu = currentPriceChangeCpu;
 
-      if(!newPrice || !fullBarcode) { showCustomAlert("Please fetch product and enter new MRP!", "Warning"); return; }
+      if(!newPrice || !fullBarcode || !Number.isFinite(cpu)) { showCustomAlert("Please fetch product and enter new MRP!", "Warning"); return; }
 
       priceChangeItems.push({
          "CIRCULAR_NAME": "Price Change",
@@ -1695,8 +1744,8 @@
          "DISPLAY_NAME": name,
          "MRP": parseFloat(newPrice),
          "PRV_MRP": parseFloat(oldPrice),
-         "CPU": parseFloat(oldPrice),
-         "PRV_CPU": parseFloat(oldPrice),
+         "CPU": cpu,
+         "PRV_CPU": cpu,
          "REF_CODE": null,
          "STATUS": "N",
          "STORE_CODE": "",
@@ -1709,6 +1758,7 @@
       document.getElementById('prodName').value = '';
       document.getElementById('currentPrice').value = '';
       document.getElementById('newMrp').value = '';
+      currentPriceChangeCpu = 0;
       document.getElementById('pcSkuInput').focus();
     }
 
@@ -1783,7 +1833,7 @@
       const searchText = document.getElementById('productSearchInput').value.trim();
 
       currentProductPage = page;
-      document.getElementById('productsTableBody').innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+      document.getElementById('productsTableBody').innerHTML = '<tr><td colspan="8" class="text-center"><div class="spinner-border text-primary" role="status"></div></td></tr>';
       
       const u = localStorage.getItem('posUser');
       const p = localStorage.getItem('posAuth');
@@ -1794,36 +1844,39 @@
           renderProductsTable(res.data.ProductList);
           updatePaginationControls();
         } else {
-          document.getElementById('productsTableBody').innerHTML = `<tr><td colspan="7" class="text-danger">${res.message}</td></tr>`;
+          document.getElementById('productsTableBody').innerHTML = `<tr><td colspan="8" class="text-danger">${escapeProductHtml(res.message)}</td></tr>`;
           showCustomAlert(res.message, "Error");
         }
       }).catch(function(err) {
-        document.getElementById('productsTableBody').innerHTML = '<tr><td colspan="7" class="text-danger">Search failed</td></tr>';
+        document.getElementById('productsTableBody').innerHTML = '<tr><td colspan="8" class="text-danger">Search failed</td></tr>';
         showCustomAlert(err.message, "Error");
       });
     }
 
     function renderProductsTable(products) {
       const tbody = document.getElementById('productsTableBody');
+      currentProductRows = Array.isArray(products) ? products : [];
       if(!products || products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No products found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No products found</td></tr>';
         return;
       }
 
       let html = '';
-      products.forEach(p => {
+      products.forEach((p, index) => {
         const skuCode = p.BARCODE || '';
         const name = p.DISPLAY_NAME || p.NAME || '';
         const brand = p.BRAND_NAME || '';
         const vendor = p.VENDOR_NAME || '';
-        const cpu = p.LAST_PUR_PRICE || p.CARTON_CPU || 0;
+        const subCategory = p.SUB_CATEGORY_NAME || '';
+        const cpu = p.LAST_PUR_PRICE ?? p.CARTON_CPU ?? 0;
         const mrp = p.MRP || 0;
 
         html += `<tr>
-          <td class="fw-bold text-primary">${skuCode}</td>
-          <td>${name}</td>
-          <td>${brand}</td>
-          <td>${vendor}</td>
+          <td class="fw-bold text-primary">${escapeProductHtml(skuCode)}</td>
+          <td>${escapeProductHtml(name)}</td>
+          <td>${escapeProductHtml(brand)}</td>
+          <td>${escapeProductHtml(vendor)}</td>
+          <td>${escapeProductHtml(subCategory)}</td>
           <td class="fw-bold">${parseFloat(cpu).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td class="fw-bold">${parseFloat(mrp).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td>
@@ -1832,19 +1885,205 @@
                 &#9881; Options
               </button>
               <ul class="dropdown-menu dropdown-menu-end shadow border-0 text-start" style="font-size: 14px; border-radius: 8px;">
-                <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="viewStock('${skuCode}', this); return false;">&#127760; Global Stock</a></li>
-                <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="openBarcodePrintModal('${skuCode}'); return false;">&#128424; Barcode Print</a></li>
-                <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="openAddStockModal('${skuCode}'); return false;">&#128230; Add Stock</a></li>
-                <li><a class="dropdown-item fw-semibold py-2 text-success" href="#" onclick="openSingleStoreTransferModal('${skuCode}'); return false;">&#128666; Store Transfer</a></li>
-                <li><a class="dropdown-item fw-semibold py-2 text-warning" href="#" onclick="openPurchaseReturnModal('${skuCode}'); return false;">&#128228; Purchase Return</a></li>
+                <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="openProductEditModal(${index}); return false;">&#9998; Edit Product</a></li>
+                <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="viewStock(getCurrentProductSku(${index}), this); return false;">&#127760; Global Stock</a></li>
+                <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="openBarcodePrintModal(getCurrentProductSku(${index})); return false;">&#128424; Barcode Print</a></li>
+                <li><a class="dropdown-item fw-semibold py-2" href="#" onclick="openAddStockModal(getCurrentProductSku(${index})); return false;">&#128230; Add Stock</a></li>
+                <li><a class="dropdown-item fw-semibold py-2 text-success" href="#" onclick="openSingleStoreTransferModal(getCurrentProductSku(${index})); return false;">&#128666; Store Transfer</a></li>
+                <li><a class="dropdown-item fw-semibold py-2 text-warning" href="#" onclick="openPurchaseReturnModal(getCurrentProductSku(${index})); return false;">&#128228; Purchase Return</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item fw-semibold py-2 text-danger" href="#" onclick="openSinglePriceChangeModal('${skuCode}'); return false;">&#128178; Price Change</a></li>
+                <li><a class="dropdown-item fw-semibold py-2 text-danger" href="#" onclick="openSinglePriceChangeModal(getCurrentProductSku(${index})); return false;">&#128178; Price Change</a></li>
               </ul>
             </div>
           </td>
         </tr>`;
       });
       tbody.innerHTML = html;
+    }
+
+    function escapeProductHtml(value) {
+      return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getCurrentProductSku(index) {
+      const product = currentProductRows[index];
+      return product ? String(product.BARCODE || product.SKU || '') : '';
+    }
+
+    function showProductEditError(message) {
+      document.getElementById('productEditLoader').style.display = 'none';
+      document.getElementById('productEditForm').style.display = 'none';
+      const error = document.getElementById('productEditError');
+      error.textContent = message;
+      error.classList.remove('d-none');
+    }
+
+    async function openProductEditModal(index) {
+      const productRow = currentProductRows[index];
+      if (!productRow) {
+        showCustomAlert("Product information is no longer available. Search again and retry.", "Error");
+        return;
+      }
+
+      const modalElement = document.getElementById('productEditModal');
+      bootstrap.Modal.getOrCreateInstance(modalElement).show();
+      document.getElementById('productEditLoader').style.display = 'block';
+      document.getElementById('productEditForm').style.display = 'none';
+      document.getElementById('productEditError').classList.add('d-none');
+      document.getElementById('productEditSaveBtn').disabled = true;
+      currentProductEdit = null;
+
+      try {
+        const username = localStorage.getItem('posUser');
+        const password = localStorage.getItem('posAuth');
+        const [productResult, dropdownResponse] = await Promise.all([
+          gasRun('getProductDetails', [username, password, productRow.BARCODE || productRow.SKU]),
+          fetch(SCRIPT_URL + "/dropdowns")
+        ]);
+
+        if (!productResult.success || !productResult.data) {
+          throw new Error(productResult.message || "Failed to fetch product details.");
+        }
+        if (!dropdownResponse.ok) {
+          throw new Error("Failed to load brand and sub category options.");
+        }
+
+        const dropdownData = await dropdownResponse.json();
+        if (!dropdownData.success) {
+          throw new Error(dropdownData.message || "Failed to load brand and sub category options.");
+        }
+
+        currentProductEdit = productResult.data;
+        globalBrands = Array.isArray(dropdownData.brands) ? dropdownData.brands : [];
+        globalSubCategories = Array.isArray(dropdownData.subCategories) ? dropdownData.subCategories : [];
+
+        const brandSelect = document.getElementById('productEditBrand');
+        brandSelect.replaceChildren(new Option("-- Select Brand --", ""));
+        globalBrands.forEach(brand => {
+          if (brand.CODE && brand.BRAND_NAME) {
+            brandSelect.add(new Option(`${brand.BRAND_NAME} (${brand.CODE})`, String(brand.CODE)));
+          }
+        });
+        const brandCode = String(currentProductEdit.BRAND_CODE || "");
+        if (brandCode && !Array.from(brandSelect.options).some(option => option.value === brandCode)) {
+          brandSelect.add(new Option(
+            `${currentProductEdit.BRAND_NAME || brandCode} (${brandCode})`,
+            brandCode
+          ));
+            globalBrands.push({
+              CODE: brandCode,
+              BRAND_NAME: currentProductEdit.BRAND_NAME || brandCode
+            });
+        }
+        brandSelect.value = brandCode;
+
+        const subCategorySelect = document.getElementById('productEditSubCategory');
+        subCategorySelect.replaceChildren(new Option("-- Keep current sub category --", ""));
+        globalSubCategories.forEach(subCategory => {
+          const code = subCategory.CODE || subCategory.SUB_CATEGORY_CODE;
+          const name = subCategory.SUB_CATEGORY_NAME || subCategory.NAME;
+          if (code && name) subCategorySelect.add(new Option(`${name} (${code})`, String(code)));
+        });
+        const subCategoryCode = String(currentProductEdit.SUB_CATEGORY_CODE || "");
+        if (subCategoryCode && !Array.from(subCategorySelect.options).some(option => option.value === subCategoryCode)) {
+          subCategorySelect.add(new Option(
+            `${currentProductEdit.SUB_CATEGORY_NAME || subCategoryCode} (${subCategoryCode})`,
+            subCategoryCode
+          ));
+        }
+        subCategorySelect.value = subCategoryCode;
+
+        document.getElementById('productEditName').value = currentProductEdit.NAME || "";
+        document.getElementById('productEditCpu').value =
+          currentProductEdit.LAST_PUR_PRICE ?? currentProductEdit.CARTON_CPU ?? currentProductEdit.CPU ?? currentProductEdit.PUR_PRICE ?? 0;
+        document.getElementById('productEditMrp').value = currentProductEdit.MRP ?? 0;
+        document.getElementById('productEditLoader').style.display = 'none';
+        document.getElementById('productEditForm').style.display = '';
+        document.getElementById('productEditSaveBtn').disabled = false;
+      } catch (error) {
+        showProductEditError(error.message);
+      }
+    }
+
+    async function saveProductEdit() {
+      if (!currentProductEdit) {
+        showProductEditError("Product details have not loaded. Close this window and try again.");
+        return;
+      }
+
+      const name = document.getElementById('productEditName').value.trim();
+      const cpuValue = document.getElementById('productEditCpu').value.trim();
+      const mrpValue = document.getElementById('productEditMrp').value.trim();
+      const cpu = Number(cpuValue);
+      const mrp = Number(mrpValue);
+      const brandCode = document.getElementById('productEditBrand').value;
+      const subCategoryCode = document.getElementById('productEditSubCategory').value;
+      const brand = globalBrands.find(item => String(item.CODE) === brandCode);
+      const subCategory = globalSubCategories.find(item =>
+        String(item.CODE || item.SUB_CATEGORY_CODE) === subCategoryCode
+      );
+
+      if (!name || !brandCode || !brand || !cpuValue || !mrpValue ||
+          !Number.isFinite(cpu) || cpu < 0 || !Number.isFinite(mrp) || mrp < 0) {
+        showCustomAlert("Enter a product name, select a brand, and enter valid CPU and MRP prices.", "Warning");
+        return;
+      }
+
+      const updatedProduct = Object.assign({}, currentProductEdit);
+      const brandName = brand.BRAND_NAME;
+      const displayName = [name, brandName].filter(Boolean).join(" ");
+      updatedProduct.NAME = name;
+      updatedProduct.BRAND_CODE = brandCode;
+      updatedProduct.BRAND_NAME = brandName;
+      updatedProduct.DISPLAY_NAME = displayName;
+      updatedProduct.FULL_NAME = displayName;
+      updatedProduct.PRD_INV_NAME = displayName;
+      updatedProduct.BARCODE_NAME = name;
+      updatedProduct.LAST_PUR_PRICE = cpu;
+      updatedProduct.MRP = mrp;
+
+      if (subCategoryCode && subCategory) {
+        updatedProduct.SUB_CATEGORY_CODE = subCategoryCode;
+        updatedProduct.SUB_CATEGORY_NAME = subCategory.SUB_CATEGORY_NAME || subCategory.NAME;
+      }
+
+      const vatPercent = Number(updatedProduct.SAL_VAT_PERCENT) || 0;
+      if (updatedProduct.IS_PRICE_INCLD_VAT) {
+        const mrpExclVat = mrp / (1 + vatPercent / 100);
+        updatedProduct.MRP_EXCLD_VAT = Math.round((mrpExclVat + Number.EPSILON) * 100) / 100;
+        updatedProduct.MRP_VAT = Math.round((mrp - mrpExclVat + Number.EPSILON) * 100) / 100;
+        updatedProduct.MRP_INCLD_VAT = mrp;
+      } else {
+        updatedProduct.MRP_EXCLD_VAT = mrp;
+        updatedProduct.MRP_VAT = Math.round((mrp * vatPercent / 100 + Number.EPSILON) * 100) / 100;
+        updatedProduct.MRP_INCLD_VAT = Math.round((mrp * (1 + vatPercent / 100) + Number.EPSILON) * 100) / 100;
+      }
+
+      const saveButton = document.getElementById('productEditSaveBtn');
+      saveButton.disabled = true;
+      saveButton.innerText = "Updating...";
+      try {
+        const username = localStorage.getItem('posUser');
+        const password = localStorage.getItem('posAuth');
+        const result = await gasRun('updateSimpleProduct', [username, password, updatedProduct]);
+        if (!result.success) {
+          throw new Error(result.message || "Failed to update product.");
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('productEditModal')).hide();
+        showCustomAlert("Product updated successfully.", "Success");
+        searchProducts(currentProductPage);
+      } catch (error) {
+        showCustomAlert(error.message, "Error");
+      } finally {
+        saveButton.disabled = false;
+        saveButton.innerText = "Update Product";
+      }
     }
 
     function updatePaginationControls() {
@@ -2310,6 +2549,12 @@
         return; 
       }
 
+      let cpu = Number(currentSinglePcProduct && currentSinglePcProduct.cpu);
+      if (!Number.isFinite(cpu)) {
+        showCustomAlert("Could not read the product's buying price. Please fetch the product again.", "Error");
+        return;
+      }
+
       let btn = document.getElementById('singlePcSaveBtn');
       btn.innerText = 'Applying...';
       btn.disabled = true;
@@ -2330,8 +2575,8 @@
          "DISPLAY_NAME": name,
          "MRP": parseFloat(newMrp),
          "PRV_MRP": parseFloat(oldPrice),
-         "CPU": parseFloat(oldPrice),
-         "PRV_CPU": parseFloat(oldPrice),
+         "CPU": cpu,
+         "PRV_CPU": cpu,
          "REF_CODE": null,
          "STATUS": "N",
          "STORE_CODE": "",
@@ -3109,7 +3354,8 @@
             document.getElementById('statusMsg').className = "success";
             document.getElementById('statusMsg').innerHTML = "";
             
-            globalBrands = data.brands || []; 
+            globalBrands = data.brands || [];
+            globalSubCategories = data.subCategories || [];
             
             let datalistHtml = '';
             globalBrands.forEach(b => {
